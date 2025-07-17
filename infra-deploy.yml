@@ -11,9 +11,9 @@ variables:
   - name: resourceGroupName
     value: 'rjtrailrg'
   - name: vnetTemplate
-    value: 'infra/vnet.bicep'
+    value: 'Infra/vnet.bicep'
   - name: vmTemplate
-    value: 'infra/vm.bicep'
+    value: 'Infra/vm.bicep'
 
 stages:
 - stage: DeployInfrastructure
@@ -22,20 +22,6 @@ stages:
   - job: DeployResources
     displayName: 'Run Bicep deployments'
     steps:
-
-    - task: AzureCLI@2
-      displayName: 'Create Resource Group'
-      inputs:
-        azureSubscription: $(azureServiceConnection)
-        scriptType: bash
-        scriptLocation: inlineScript
-        inlineScript: |
-          echo "Creating resource group in location: $location"
-          az group create \
-            --name $(resourceGroupName) \
-            --location $location
-      env:
-        location: $(location)
 
     - task: AzureCLI@2
       displayName: 'Deploy VNet'
@@ -50,7 +36,6 @@ stages:
             --parameters location=$location
       env:
         location: $(location)
-      enabled: FALSE
 
     - task: AzureCLI@2
       name: GetSubnetId
@@ -65,11 +50,10 @@ stages:
             --vnet-name rjVnet \
             --name rjSubnet \
             --query id -o tsv)
-          
+          echo "Subnet ID = $subnetId"
           echo "##vso[task.setvariable variable=subnetId;issecret=true]$subnetId"
       env:
         location: $(location)
-      enabled: FALSE
 
     - task: AzureCLI@2
       displayName: 'Deploy Linux VM (Ubuntu)'
@@ -78,14 +62,15 @@ stages:
         scriptType: bash
         scriptLocation: inlineScript
         inlineScript: |
+          echo "location: $(location)"
+          echo "adminUsername: $(adminUsername)"
+          echo "adminPassword: $(adminPassword)"
+          echo "subnetId: $(subnetId)"
+
           az deployment group create \
             --resource-group $(resourceGroupName) \
             --template-file $(vmTemplate) \
-            --parameters \
-              location=$location \
-              adminUsername=$adminUsername \
-              adminPassword=$adminPassword \
-              subnetId=$(subnetId)
+            --parameters "{\"location\":\"$(location)\",\"adminUsername\":\"$(adminUsername)\",\"adminPassword\":\"$(adminPassword)\"}"
       env:
         location: $(location)
         adminUsername: $(adminUsername)
